@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:podcost/Model/podcast_Model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:open_file/open_file.dart';
 
 class PodcastApi {
   final dio = Dio();
@@ -22,8 +24,8 @@ class PodcastApi {
 
         if (response.statusCode == 200) {
           final data = response.data;
-
           final results = data['results'];
+
           if (results is List) {
             return results.map((json) => Podcast.fromJson(json)).toList();
           } else {
@@ -44,22 +46,40 @@ class PodcastApi {
     }
   }
 
-  Future<void>downloadAudio(
+  Future<void> downloadAudio(
       String url,
-      String filname,{
+      String filename, {
         ProgressCallback? onReceiveProgress,
-  }
-      ) async{
+      }) async {
     final appStorage = await getApplicationDocumentsDirectory();
-      final sharedPreferences = await SharedPreferences.getInstance();
-      final   path = '${appStorage.path}/$filname';
-      if(await InternetConnectionChecker().hasConnection){
-        await dio.download(
-          url,
-          path,
-          onReceiveProgress: onReceiveProgress,
-        );
-        await sharedPreferences.setString('path', path);
-      }
+    final sharedPreferences = await SharedPreferences.getInstance();
+    final path = '${appStorage.path}/$filename';
+
+    // Check if file is already downloaded and exists
+    final savedPath = sharedPreferences.getString('path_$filename');
+    final fileExists = savedPath != null && File(savedPath).existsSync();
+
+    if (fileExists) {
+      print('Playing existing file from: $savedPath');
+      await OpenFile.open(savedPath!, type: 'audio/x-mpeg');
+      return;
+    }
+
+    // If not downloaded, download and save
+    if (await InternetConnectionChecker().hasConnection) {
+      print('Downloading from URL: $url');
+      await dio.download(
+        url,
+        path,
+        onReceiveProgress: onReceiveProgress,
+      );
+
+      await sharedPreferences.setString('path_$filename', path);
+      print('Downloaded and saved at: $path');
+
+      await OpenFile.open(path, type: 'audio/x-mpeg');
+    } else {
+      print('No internet connection and file not found locally.');
+    }
   }
 }

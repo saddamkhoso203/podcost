@@ -38,6 +38,9 @@ dependencies:
   internet_connection_checker: ^1.0.0+1
   shared_preferences: ^2.5.3
   path_provider: ^2.1.5
+  cached_network_image: ^3.4.1
+  open_file: ^3.5.10
+  audioplayers: ^6.4.0
 
 dev_dependencies:
   flutter_test:
